@@ -54,12 +54,10 @@ func (this *Server) Handler(conn net.Conn) {
 	fmt.Println("连接建立成功！！！")
 
 	//将新增加的用户添加到全局用户列表中
-	user := NewUser(conn)
-	this.mapLock.Lock()
-	this.OnlineMap[user.Name] = user
-	this.mapLock.Unlock()
-	//广播当前用户上线的方法进行通知
-	this.BroadCast(user, "已上线")
+	user := NewUser(conn, this)
+
+	//调用用户上线的接口
+	user.Online()
 
 	//接受客户端消息 进行广播
 	go func() {
@@ -67,7 +65,8 @@ func (this *Server) Handler(conn net.Conn) {
 		for {
 			n, err := conn.Read(buf)
 			if n == 0 {
-				this.BroadCast(user, "已下线")
+				//调用用户下线
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -76,7 +75,8 @@ func (this *Server) Handler(conn net.Conn) {
 			}
 			// 提取用户的消息，去掉换行符
 			msg := string(buf[:n-1])
-			this.BroadCast(user, msg)
+			//调用用户处理消息的接口
+			user.DoMessage(msg)
 		}
 	}()
 	//当前handle阻塞
