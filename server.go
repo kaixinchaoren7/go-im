@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 // 创建服务器类
@@ -59,6 +60,9 @@ func (this *Server) Handler(conn net.Conn) {
 	//调用用户上线的接口
 	user.Online()
 
+	// 监听用户是否活跃的channel
+	isActive := make(chan bool)
+
 	//接受客户端消息 进行广播
 	go func() {
 		buf := make([]byte, 4096)
@@ -77,10 +81,24 @@ func (this *Server) Handler(conn net.Conn) {
 			msg := string(buf[:n-1])
 			//调用用户处理消息的接口
 			user.DoMessage(msg)
+
+			//当用户有消息时，将其标记为活跃
+			isActive <- true
 		}
 	}()
 	//当前handle阻塞
-	select {}
+	for {
+		select {
+		case <-isActive:
+		case <-time.After(time.Second * 30):
+			//已经超时，将当前user强制下线
+			user.SendMsg("您已超时，已被强制下线")
+			//销毁当前user对应的资源
+			close(user.C)
+			conn.Close()
+			return
+		}
+	}
 }
 
 // 给Server类添加一个启动的方法（该方法为成员方法）
