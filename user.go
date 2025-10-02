@@ -73,6 +73,22 @@ func (this *User) DoMessage(msg string) {
 		this.server.OnlineMap[newName] = this
 		this.server.mapLock.Unlock()
 		this.SendMsg("您已成功重命名为" + newName)
+	} else if msg[:3] == "to|" { //用户私聊功能
+		// 私聊的目标用户
+		targetName := strings.Split(msg, "|")[1]
+		if _, ok := this.server.OnlineMap[targetName]; !ok {
+			this.SendMsg("私聊用户不存在")
+			return
+		}
+		targetUser := this.server.OnlineMap[targetName]
+		// 私聊的消息
+		privateMsg := strings.Split(msg, "|")[2]
+		if privateMsg == "" {
+			this.SendMsg("消息内容为空，请重试")
+			return
+		}
+		targetUser.SendMsg("[" + this.Addr + "]" + this.Name + "对您说:" + privateMsg)
+		this.SendMsg("您已成功发送给" + targetName)
 	} else {
 		this.server.BroadCast(this, msg)
 	}
